@@ -6,6 +6,7 @@ import { cancelTimeout, requestTimeout } from './timer';
 import { getScrollbarSize, getRTLOffsetType } from './domHelpers';
 
 import type { TimeoutID } from './timer';
+import { animatedScrollTo } from './scrollTo';
 
 export type ScrollToAlign = 'auto' | 'smart' | 'center' | 'start' | 'end';
 
@@ -177,6 +178,7 @@ export default function createListComponent({
         typeof this.props.initialScrollOffset === 'number'
           ? this.props.initialScrollOffset
           : 0,
+      scrollAnimated: false,
       scrollUpdateWasRequested: false,
     };
 
@@ -196,7 +198,7 @@ export default function createListComponent({
       return null;
     }
 
-    scrollTo(scrollOffset: number): void {
+    scrollTo(scrollOffset: number, animated: boolean = false): void {
       scrollOffset = Math.max(0, scrollOffset);
 
       this.setState(prevState => {
@@ -208,11 +210,12 @@ export default function createListComponent({
             prevState.scrollOffset < scrollOffset ? 'forward' : 'backward',
           scrollOffset: scrollOffset,
           scrollUpdateWasRequested: true,
+          scrollAnimated: animated,
         };
       }, this._resetIsScrollingDebounced);
     }
 
-    scrollToItem(index: number, align: ScrollToAlign = 'auto'): void {
+    scrollToItem(index: number, align: ScrollToAlign = 'auto', animated: boolean = false): void {
       const { itemCount, layout } = this.props;
       const { scrollOffset } = this.state;
 
@@ -245,7 +248,8 @@ export default function createListComponent({
           scrollOffset,
           this._instanceProps,
           scrollbarSize
-        )
+        ),
+        animated
       );
     }
 
@@ -267,7 +271,7 @@ export default function createListComponent({
 
     componentDidUpdate() {
       const { direction, layout } = this.props;
-      const { scrollOffset, scrollUpdateWasRequested } = this.state;
+      const { scrollOffset, scrollUpdateWasRequested, scrollAnimated } = this.state;
 
       if (scrollUpdateWasRequested && this._outerRef != null) {
         const outerRef = ((this._outerRef: any): HTMLElement);
@@ -294,9 +298,11 @@ export default function createListComponent({
             outerRef.scrollLeft = scrollOffset;
           }
         } else {
-          outerRef.scrollTop = scrollOffset;
+          if (scrollAnimated) animatedScrollTo(outerRef, scrollOffset, undefined, 200)
+          else outerRef.scrollTop = scrollOffset;
         }
       }
+      
 
       this._callPropsCallbacks();
     }

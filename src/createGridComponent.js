@@ -6,6 +6,7 @@ import { cancelTimeout, requestTimeout } from './timer';
 import { getScrollbarSize, getRTLOffsetType } from './domHelpers';
 
 import type { TimeoutID } from './timer';
+import { animatedScrollTo } from './scrollTo';
 
 type Direction = 'ltr' | 'rtl';
 export type ScrollToAlign = 'auto' | 'smart' | 'center' | 'start' | 'end';
@@ -215,6 +216,7 @@ export default function createGridComponent({
           ? this.props.initialScrollTop
           : 0,
       scrollUpdateWasRequested: false,
+      scrollAnimated: false,
       verticalScrollDirection: 'forward',
     };
 
@@ -237,6 +239,7 @@ export default function createGridComponent({
     scrollTo({
       scrollLeft,
       scrollTop,
+      animated
     }: {
       scrollLeft: number,
       scrollTop: number,
@@ -268,6 +271,7 @@ export default function createGridComponent({
             prevState.scrollLeft < scrollLeft ? 'forward' : 'backward',
           scrollLeft: scrollLeft,
           scrollTop: scrollTop,
+          scrollAnimated: animated,
           scrollUpdateWasRequested: true,
           verticalScrollDirection:
             prevState.scrollTop < scrollTop ? 'forward' : 'backward',
@@ -275,26 +279,13 @@ export default function createGridComponent({
       }, this._resetIsScrollingDebounced);
     }
 
-    scrollToItem({
-      align = 'auto',
-      columnIndex,
-      rowIndex,
-    }: {
-      align: ScrollToAlign,
-      columnIndex?: number,
-      rowIndex?: number,
-    }): void {
+    scrollToItem(index: number, align: ScrollToAlign = 'auto', animated: boolean = false): void {
       const { columnCount, height, rowCount, width } = this.props;
       const { scrollLeft, scrollTop } = this.state;
       const scrollbarSize = getScrollbarSize();
 
-      if (columnIndex !== undefined) {
-        columnIndex = Math.max(0, Math.min(columnIndex, columnCount - 1));
-      }
-      if (rowIndex !== undefined) {
-        rowIndex = Math.max(0, Math.min(rowIndex, rowCount - 1));
-      }
-
+      const rowIndex = parseInt(index / columnCount);
+      
       const estimatedTotalHeight = getEstimatedTotalHeight(
         this.props,
         this._instanceProps
@@ -313,17 +304,6 @@ export default function createGridComponent({
         estimatedTotalHeight > height ? scrollbarSize : 0;
 
       this.scrollTo({
-        scrollLeft:
-          columnIndex !== undefined
-            ? getOffsetForColumnAndAlignment(
-                this.props,
-                columnIndex,
-                align,
-                scrollLeft,
-                this._instanceProps,
-                verticalScrollbarSize
-              )
-            : scrollLeft,
         scrollTop:
           rowIndex !== undefined
             ? getOffsetForRowAndAlignment(
@@ -335,6 +315,7 @@ export default function createGridComponent({
                 horizontalScrollbarSize
               )
             : scrollTop,
+        animated: animated,
       });
     }
 
@@ -356,7 +337,7 @@ export default function createGridComponent({
 
     componentDidUpdate() {
       const { direction } = this.props;
-      const { scrollLeft, scrollTop, scrollUpdateWasRequested } = this.state;
+      const { scrollLeft, scrollTop, scrollUpdateWasRequested, scrollAnimated } = this.state;
 
       if (scrollUpdateWasRequested && this._outerRef != null) {
         // TRICKY According to the spec, scrollLeft should be negative for RTL aligned elements.
@@ -380,7 +361,8 @@ export default function createGridComponent({
           outerRef.scrollLeft = Math.max(0, scrollLeft);
         }
 
-        outerRef.scrollTop = Math.max(0, scrollTop);
+        if (scrollAnimated) animatedScrollTo(outerRef, scrollTop, undefined, 200)
+        else outerRef.scrollTop = Math.max(0, scrollTop);
       }
 
       this._callPropsCallbacks();
