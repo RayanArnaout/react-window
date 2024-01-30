@@ -72,6 +72,7 @@ export type Props<T> = {|
   layout: Layout,
   onItemsRendered?: onItemsRenderedCallback,
   onScroll?: onScrollCallback,
+  onScrollStop?: OnScrollStopCallback,
   outerRef?: any,
   outerElementType?: string | React$AbstractComponent<OuterProps, any>,
   outerTagName?: string, // deprecated
@@ -298,7 +299,7 @@ export default function createListComponent({
             outerRef.scrollLeft = scrollOffset;
           }
         } else {
-          if (scrollAnimated) animatedScrollTo(outerRef, scrollOffset, undefined, 200)
+          if (scrollAnimated) animatedScrollTo(outerRef, scrollOffset, () => {this.props.onScrollStop?.(scrollOffset)}, 200)
           else outerRef.scrollTop = scrollOffset;
         }
       }
@@ -388,7 +389,7 @@ export default function createListComponent({
           ref: innerRef,
           style: {
             height: isHorizontal ? '100%' : estimatedTotalSize,
-            pointerEvents: isScrolling ? 'none' : undefined,
+            /*pointerEvents: isScrolling ? 'none' : undefined,*/
             width: isHorizontal ? estimatedTotalSize : '100%',
           },
         })
@@ -464,6 +465,11 @@ export default function createListComponent({
           scrollOffset,
           scrollUpdateWasRequested
         );
+      }
+
+      const {isScrolling, scrollOffset} = this.state;
+      if(!isScrolling) {
+        this.props.onScrollStop?.(scrollOffset)
       }
     }
 

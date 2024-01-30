@@ -43,6 +43,9 @@ type OnScrollCallback = ({
   scrollUpdateWasRequested: boolean,
   verticalScrollDirection: ScrollDirection,
 }) => void;
+type OnScrollStopCallback = ({
+  scrollTop: number,
+}) => void;
 
 type ScrollEvent = SyntheticEvent<HTMLDivElement>;
 type ItemStyleCache = { [key: string]: Object };
@@ -83,6 +86,7 @@ export type Props<T> = {|
   |}) => any,
   onItemsRendered?: OnItemsRenderedCallback,
   onScroll?: OnScrollCallback,
+  onScrollStop?: OnScrollStopCallback,
   outerRef?: any,
   outerElementType?: string | React$AbstractComponent<OuterProps, any>,
   outerTagName?: string, // deprecated
@@ -460,7 +464,6 @@ export default function createGridComponent({
           ref: innerRef,
           style: {
             height: estimatedTotalHeight,
-            pointerEvents: isScrolling ? 'none' : undefined,
             width: estimatedTotalWidth,
           },
         })
@@ -569,6 +572,11 @@ export default function createGridComponent({
           verticalScrollDirection,
           scrollUpdateWasRequested
         );
+      }
+
+      const {isScrolling, scrollTop} = this.state;
+      if(!isScrolling) {
+        this.props.onScrollStop?.(scrollTop)
       }
     }
 
@@ -681,13 +689,13 @@ export default function createGridComponent({
 
       const startIndex = getRowStartIndexForOffset(
         this.props,
-        scrollTop,
+        scrollTop || 0,
         this._instanceProps
       );
       const stopIndex = getRowStopIndexForStartIndex(
         this.props,
         startIndex,
-        scrollTop,
+        scrollTop || 0,
         this._instanceProps
       );
 
